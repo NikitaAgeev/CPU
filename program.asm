@@ -1,0 +1,7 @@
+PUSH 10
+PUSH 5
+MULL
+OUT
+
+
+
