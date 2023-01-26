@@ -28,6 +28,7 @@ enum COMAND_CODE
     MEM_PARAM_T_MASK = 0x70,
 
     MEM_KEY_MASK = 0x10 << 3,
+    RAM_KEY      = 0x10 << 2,
     REGISTER_KEY = 0x10 << 1,
     INT_NUM_KEY  = 0x10 << 0,
 
@@ -38,6 +39,8 @@ enum COMAND_CODE
     MULL  = 0x05,
     DIV   = 0x06,
     OUT   = 0x07,
+
+    COMENT = 0x7F,
 };
 
 #endif

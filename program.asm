@@ -1,12 +1,6 @@
 PUSH 11
-POP rax
-
-PUSH rax
-PUSH rax
-
+POP [1]
+PUSH [1]
+PUSH [1]
 MULL
 OUT
-
-
-
-

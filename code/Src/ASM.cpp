@@ -5,7 +5,7 @@
 #include "Onegin_hed.h"
 #include "ASM.h"
 
-const int ASM_VER = 2;
+const int ASM_VER = 3;
 const char* ASM_CODE =  "NA";
 
 const int num_of_registers = 4;
@@ -23,8 +23,6 @@ static int compile (Text code, char* bin_mass, size_t* bin_mass_len);
 static int it_is_i (char* str);
 
 static int it_is_reg (char* str);
-
-static int it_is_operation (char* str);
 
 static int take_reg_num (char* str);
 
@@ -105,6 +103,12 @@ static void make_meta_data (FILE* output_file, size_t bin_len)
 }
 
 
+#define BED_ARG                                                 \
+{                                                               \
+    printf("ERROR: bed arg in: \"%s\"\n", comand_string.str);   \
+    return ERROR_PAR;                                           \
+}                                                               
+
 static int param_interpritator (string comand_string, char* pointer, int param_type, size_t* bin_mass_len )
 {
     *bin_mass_len += sizeof(char);
@@ -114,8 +118,10 @@ static int param_interpritator (string comand_string, char* pointer, int param_t
         size_t after_comand_pos = 0;
         sscanf(comand_string.str, "%*s%ln", (ssize_t*)&after_comand_pos);
         
-        if(after_comand_pos == comand_string.len) return OK_PARAM;
-        else return ERROR_PAR;
+        if(after_comand_pos == comand_string.len)
+            return OK_PARAM;
+        else
+            BED_ARG
     }
     else if(param_type & ONE_PARAM)
     {
@@ -132,106 +138,174 @@ static int param_interpritator (string comand_string, char* pointer, int param_t
             return OK_PARAM;
         }
         
-         return ERROR_PAR;
+        BED_ARG
     }
     else if(param_type & (IN_MEM_PARAM | OUT_MEM_PARAM))
     {
+        /*
+        lrgal comand string combinations for IN_MEM_PARAM
+        a.1.1 COMAND REG/INT    
+        a.1.2 COMAND REG +- INT
+        a.1.3 COMAND INT + REG
+        a.2.1 COMAND [REG/INT]
+        a.2.2 COMAND [REG +- INT]
+        a.2.3 COMAND [INT + REG]
+        lrgal comand string combinations for OUT_MEM_PARAM
+        b.1.1 COMAND     
+        b.1.2 COMAND REG
+        b.2.1 COMAND [REG/INT]
+        b.2.2 COMAND [REG +- INT]
+        b.2.3 COMAND [INT + REG]
+        */
+
         *pointer |= MEM_KEY_MASK;
-        
-        int zero_param_len   = 0;
-        int first_param_len  = 0;
-        int second_param_len = 0;
 
+        //b.1.1
+
+        int com_len = 0;
+        char end_char = 0;
+        int num_to_var = 0;
+
+        int readed_n = sscanf(comand_string.str, "%*s %n%c %n", &com_len, &end_char, &num_to_var);
+
+        if( ((readed_n <= 0) && (com_len  == (int)comand_string.len)) || //b.1.1 -- no coment
+            ((readed_n == 1) && (end_char == '%')))                 //b.1.1 -- coment                
+            return OK_PARAM;            
+        else if(readed_n == 0)
+            BED_ARG
+        
+        //RAM_checker
+        int RAM_flag = 0;
+
+        if(end_char == '[')
+        {
+            RAM_flag = 1;
+            *pointer |= RAM_KEY;
+        }
+        else 
+            num_to_var = com_len;
+         
+
+        //a.1/2.1 && b.1/2.2
         char param_1[100] = {};
+        int param_1_len = 0;
+        int param_1_after = 0;
+        readed_n = sscanf(comand_string.str + num_to_var, "%[rabcdx0-9] %n%c %n", param_1, &param_1_len, &end_char, &param_1_after);
+
+        //we need read arg
+        if(readed_n <= 0)
+            BED_ARG
+
+        //readed_n > 0
+        if(it_is_reg(param_1))
+        {
+            *pointer |= REGISTER_KEY;
+            *(int*)(pointer + sizeof(char)) = take_reg_num(param_1);
+            *bin_mass_len += sizeof(int);
+        }
+        else if(it_is_i(param_1))
+        {    
+            *pointer |= INT_NUM_KEY;
+            *(int*)(pointer + sizeof(char)) = atoi(param_1);
+            *bin_mass_len += sizeof(int);
+        }
+        else
+            BED_ARG   //don't legal param_1
+
+        //a.1.1 && b.1.2 only no_coment no_ram
+        if(readed_n == 1)
+        {
+            if(((param_1_len + num_to_var) == (int)comand_string.len) && !RAM_flag && (!(param_type == OUT_MEM_PARAM) || it_is_reg(param_1)))
+                return OK_PARAM;
+
+            BED_ARG
+        }
+        
+        if(readed_n == 2)
+        {
+            //a.1.1 && b.1.2 coment
+            if(end_char == '%') // only at the end of the command
+            {
+                if(!RAM_flag && (!(param_type == OUT_MEM_PARAM) || it_is_reg(param_1)))
+                    return OK_PARAM;
+                
+                BED_ARG
+            }
+
+            //b.2.1 a.2.1
+            if(end_char == ']') // only at the end of the command
+            {
+                if(RAM_flag && (((param_1_after + num_to_var) == (int)comand_string.len) || (comand_string.str[param_1_after + num_to_var] == '%')))
+                    return OK_PARAM;
+
+                BED_ARG
+            }
+        }
+
+        //a.1/2.2/3 b.2.2/3
+        int operation = 0;
+
+        if(end_char == '+')
+            operation = 1;
+        else if(end_char == '-')
+            operation = -1;
+        else
+            BED_ARG //no another operation
+
         char param_2[100] = {};
+        int param_2_len = 0;
+        int param_2_after = 0;
+        readed_n = sscanf(comand_string.str + num_to_var + param_1_after, "%[rabcdx0-9] %n%c %n", param_2, &param_2_len, &end_char, &param_2_after);
 
-        char operation[100] = {};
+        if(readed_n == 0)
+            BED_ARG
 
-        //lrgal comand string combinations for IN_MEM_PARAM
-        //COMAND REG/INT    
-        //COMAND REG +- INT
-        //COMAND INT + REG
-        //lrgal comand string combinations for OUT_MEM_PARAM
-        //COMAND     
-        //COMAND REG
-
-        int num_of_read_param = sscanf(comand_string.str, "%*s%n %[rabcdx0-9]%n %[+-] %[rabcdx0-9]%n",
-                                       &zero_param_len, param_1, &first_param_len, operation, param_2, &second_param_len);
-
-        
-        //printf("from: \"%s\"(len: %d)\n  param_1: \"%s\"\n   param_2: \"%s\"\n   operator: \"%s\"\n  num_of_read_param: %d\n first_param_len: %d\n second_param_len: %d\n", comand_string.str, comand_string.len,  param_1, param_2, operation, num_of_read_param, first_param_len, second_param_len);
-
-
-        if((num_of_read_param == 0) && (zero_param_len == (int)comand_string.len) && (param_type & OUT_MEM_PARAM))
-        {
-            return OK_PARAM;
-        }
-        
-        //COMAND A
-        if((num_of_read_param == 1) && (first_param_len == (int)comand_string.len))
-        {
-            if(it_is_reg(param_1))
+        if((it_is_reg(param_2)) && (operation > 0) && !(*pointer & REGISTER_KEY))
             {
                 *pointer |= REGISTER_KEY;
-                *(int*)(pointer + sizeof(char)) = take_reg_num(param_1);
-                *bin_mass_len += sizeof(int);
-
-                return OK_PARAM;
-            }
-            else if (it_is_i(param_1) && !(param_type & OUT_MEM_PARAM))
-            {                
-                *pointer |= INT_NUM_KEY;
-                *(int*)(pointer + sizeof(char)) = atoi(param_1);
-                *bin_mass_len += sizeof(int);
-
-                return OK_PARAM;
-            }
-
-            printf("ERROR\n");
-            return ERROR_PAR;
-        }
-
-        //COMAND A +- B
-        if((num_of_read_param == 3) && (second_param_len == (int)comand_string.len) && !(param_type & OUT_MEM_PARAM))
-        {
-            if(!it_is_operation(operation))
-                return ERROR_PAR;
-
-            if(it_is_reg(param_1) && it_is_i(param_2))
-            {
-                *pointer |= INT_NUM_KEY;
-                *pointer |= REGISTER_KEY;
-                
-                *(int*)(pointer + sizeof(char)) = take_reg_num(param_1);
-                if(*operation == '+')
-                    *(int*)(pointer + sizeof(char) + sizeof(int)) = atoi(param_2);
-                else
-                    *(int*)(pointer + sizeof(char) + sizeof(int)) = -atoi(param_2);
-
-                *bin_mass_len += sizeof(int)*2;
-
-                return OK_PARAM;
-            }
-
-            if(it_is_i(param_1) && (*operation == '+') && it_is_reg(param_2))
-            {
-                *pointer |= INT_NUM_KEY;
-                *pointer |= REGISTER_KEY;
-                
                 *(int*)(pointer + sizeof(char)) = take_reg_num(param_2);
-                *(int*)(pointer + sizeof(char) + sizeof(int)) = atoi(param_1);
-                
-                *bin_mass_len += sizeof(int)*2;
+                *bin_mass_len += sizeof(int);
+            }
+        else if(it_is_i(param_2) && !(*pointer & INT_NUM_KEY))
+            {
+                *pointer |= INT_NUM_KEY;
+                *(int*)(pointer + sizeof(char)) = atoi(param_2);
+                *bin_mass_len += sizeof(int);
+            }
+        else
+            BED_ARG
 
+        //a.1.2 && a.1.3 only no_coment no_ram
+        if(readed_n == 1)
+        {
+            if(((param_1_after + param_2_len + num_to_var) == (int)comand_string.len) && !RAM_flag)
                 return OK_PARAM;
+
+            BED_ARG
+        }
+        
+        if(readed_n == 2)
+        {
+            //a.1.2 && a.1.3 coment
+            if(end_char == '%') // only at the end of the command
+            {
+                if(!RAM_flag)
+                    return OK_PARAM;
+                
+                BED_ARG
             }
 
-            printf("ERROR\n");
-            return ERROR_PAR;
+            //a/b.2.2/3
+            if(end_char == ']') // only at the end of the command
+            {
+                if(RAM_flag && (((param_1_after + param_2_after + num_to_var) == (int)comand_string.len) || (comand_string.str[param_1_after + param_2_after + num_to_var] == '%')))
+                    return OK_PARAM;
+
+                BED_ARG
+            }
         }
 
-        printf("ERROR\n");
-        return ERROR_PAR;
+        BED_ARG;
     
     }
 
@@ -256,14 +330,6 @@ static int it_is_reg (char* str)
     return (strlen(str) == 3) && (str[0] == 'r') && (str[2] == 'x') && ((str[1] - 'a') >= 0) && ((str[1] - 'a') < num_of_registers); 
 }
 
-static int it_is_operation (char* str)
-{
-    if(strlen(str) == 1)
-        return 1;
-    
-    return 0;
-}
-
 static int take_reg_num (char* str)
 {
     return str[1] - 'a';
@@ -279,7 +345,11 @@ if(!strncmp(comand_string.str, #COMAND, strlen(#COMAND)))   \
 
 static int comand_interpritator (string comand_string)
 {
-    
+    if(*comand_string.str == '%')
+    {
+        return COMENT;
+    }
+
     INTERPRITATOR_UNIT(POP)
     INTERPRITATOR_UNIT(PUSH)
     INTERPRITATOR_UNIT(ADD)
@@ -320,6 +390,10 @@ static int compile (Text code, char* bin_mass, size_t* bin_mass_len)
         COMAND_CASE(MULL, NO_PARAM)
         COMAND_CASE(DIV,  NO_PARAM)
         COMAND_CASE(OUT,  NO_PARAM)
+
+        case COMENT:
+            break;
+
         default:
             return ERROR_COMAND;
             break;
