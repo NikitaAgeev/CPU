@@ -1,4 +1,4 @@
-VERSION 	=1
+VERSION 	=2
 CXX			= g++
 DEBUG 		= -g
 CXXFLAGS	= -Wall -Wextra -Wpedantic

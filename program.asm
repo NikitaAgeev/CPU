@@ -1,13 +1,11 @@
-PUSH 10
-PUSH 5
+PUSH 11
+POP rax
+
+PUSH rax
+PUSH rax
+
 MULL
 OUT
-
-TEST 2 + rax
-TEST rax + 2
-TEST rax
-TEST 2
-TEST 2 - rax 
 
 
 

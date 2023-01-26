@@ -5,7 +5,7 @@
 #include "Onegin_hed.h"
 #include "ASM.h"
 
-const int ASM_VER = 1;
+const int ASM_VER = 2;
 const char* ASM_CODE =  "NA";
 
 const int num_of_registers = 4;
@@ -104,6 +104,7 @@ static void make_meta_data (FILE* output_file, size_t bin_len)
     fwrite(&bin_len, sizeof(size_t), 1, output_file);
 }
 
+
 static int param_interpritator (string comand_string, char* pointer, int param_type, size_t* bin_mass_len )
 {
     *bin_mass_len += sizeof(char);
@@ -135,6 +136,8 @@ static int param_interpritator (string comand_string, char* pointer, int param_t
     }
     else if(param_type & (IN_MEM_PARAM | OUT_MEM_PARAM))
     {
+        *pointer |= MEM_KEY_MASK;
+        
         int zero_param_len   = 0;
         int first_param_len  = 0;
         int second_param_len = 0;
@@ -152,20 +155,20 @@ static int param_interpritator (string comand_string, char* pointer, int param_t
         //COMAND     
         //COMAND REG
 
-        int num_of_read_param = sscanf(comand_string.str, "%*s%N %[rabcdx0-9]%n %[+-] %[rabcdx0-9]%n",
+        int num_of_read_param = sscanf(comand_string.str, "%*s%n %[rabcdx0-9]%n %[+-] %[rabcdx0-9]%n",
                                        &zero_param_len, param_1, &first_param_len, operation, param_2, &second_param_len);
 
         
         //printf("from: \"%s\"(len: %d)\n  param_1: \"%s\"\n   param_2: \"%s\"\n   operator: \"%s\"\n  num_of_read_param: %d\n first_param_len: %d\n second_param_len: %d\n", comand_string.str, comand_string.len,  param_1, param_2, operation, num_of_read_param, first_param_len, second_param_len);
 
 
-        if((num_of_read_param == 0) && (zero_param_len == comand_string.len) && OUT_MEM_PARAM)
+        if((num_of_read_param == 0) && (zero_param_len == (int)comand_string.len) && (param_type & OUT_MEM_PARAM))
         {
             return OK_PARAM;
         }
         
         //COMAND A
-        if((num_of_read_param == 1) && (first_param_len == comand_string.len))
+        if((num_of_read_param == 1) && (first_param_len == (int)comand_string.len))
         {
             if(it_is_reg(param_1))
             {
@@ -189,7 +192,7 @@ static int param_interpritator (string comand_string, char* pointer, int param_t
         }
 
         //COMAND A +- B
-        if((num_of_read_param == 3) && (second_param_len == comand_string.len) && !(param_type & OUT_MEM_PARAM))
+        if((num_of_read_param == 3) && (second_param_len == (int)comand_string.len) && !(param_type & OUT_MEM_PARAM))
         {
             if(!it_is_operation(operation))
                 return ERROR_PAR;
@@ -235,13 +238,14 @@ static int param_interpritator (string comand_string, char* pointer, int param_t
     return OK_PARAM;
 }
 
+
 static int it_is_i (char* str)
 {
     int int_param = 0;
     int read_len = 0;
     int read_num = sscanf(str, "%d%n", &int_param, &read_len);
     
-    if((read_num == 1) && (read_len == strlen(str)))
+    if((read_num == 1) && (read_len == (int)strlen(str)))
         return 1;
 
     return 0;
@@ -283,7 +287,6 @@ static int comand_interpritator (string comand_string)
     INTERPRITATOR_UNIT(MULL)
     INTERPRITATOR_UNIT(DIV)
     INTERPRITATOR_UNIT(OUT)
-    INTERPRITATOR_UNIT(TEST)
     
     return ERROR_COM;
 }
@@ -310,14 +313,13 @@ static int compile (Text code, char* bin_mass, size_t* bin_mass_len)
         int comand = comand_interpritator(code.str_mass[itterator]);
         switch (comand)
         {
-        COMAND_CASE(POP,  NO_PARAM)
+        COMAND_CASE(POP,  OUT_MEM_PARAM)
         COMAND_CASE(PUSH, IN_MEM_PARAM)
         COMAND_CASE(ADD,  NO_PARAM)
         COMAND_CASE(DEL,  NO_PARAM)
         COMAND_CASE(MULL, NO_PARAM)
         COMAND_CASE(DIV,  NO_PARAM)
         COMAND_CASE(OUT,  NO_PARAM)
-        COMAND_CASE(TEST, IN_MEM_PARAM)
         default:
             return ERROR_COMAND;
             break;

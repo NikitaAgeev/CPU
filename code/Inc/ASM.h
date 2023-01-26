@@ -26,11 +26,10 @@ enum COMAND_CODE
 {
     ERROR_COM        = 0x00,
     MEM_PARAM_T_MASK = 0x70,
-    MEM_FUNK_T_MASK  = 0x0F,
-    MEM_KEY_MASK     = 0x80,
 
-    REGISTER_KEY = 0x20,
-    INT_NUM_KEY  = 0x10,
+    MEM_KEY_MASK = 0x10 << 3,
+    REGISTER_KEY = 0x10 << 1,
+    INT_NUM_KEY  = 0x10 << 0,
 
     POP   = 0x01,
     PUSH  = 0x02,
@@ -39,7 +38,6 @@ enum COMAND_CODE
     MULL  = 0x05,
     DIV   = 0x06,
     OUT   = 0x07,
-    TEST  = 0x08,
 };
 
 #endif
