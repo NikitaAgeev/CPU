@@ -1,6 +1,8 @@
 #ifndef ASM
 #define ASM
 
+
+//cange
 const int ASM_VER = 4;
 const int CPU_VER = 3;
 const char* ASM_CODE =  "NA";
