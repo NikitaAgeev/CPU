@@ -42,4 +42,28 @@ COMAND(OUT, 0x07, NO_PARAM,         \
 }                                   \
 )
                                 
-COMAND(JMP, 0x08, MARC_PARAM, {printf("yes\n");})
+COMAND(JMP, 0x08, MARC_PARAM,       \
+{                                   \
+    i_ptr = param;                  \
+}                                   \
+)
+
+COMAND(CALL, 0x09, MARC_PARAM,      \
+{                                   \
+    push_ret(i_ptr);                \
+    i_ptr = param;                  \
+}                                   \
+)
+
+COMAND(RET, 0x0A, NO_PARAM,         \
+{                                   \
+    i_ptr = pop_ret;                \
+}                                   \
+)
+
+COMAND(END, 0x0B, NO_PARAM,         \
+{                                   \
+    i_ptr = code_len;               \
+}                                   \
+)
+

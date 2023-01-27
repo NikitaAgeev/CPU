@@ -1,6 +1,14 @@
+CALL .11
+
 PUSH 11
-POP [1]
-PUSH [1]
-PUSH [1]
+
 MULL
+
 OUT
+END
+
+:11
+
+PUSH 11
+
+RET

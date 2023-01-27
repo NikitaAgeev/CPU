@@ -258,8 +258,11 @@ void stack_dtor_f (Stack* stack, STACK_EARGS)
 
     FUNC_ASERT(*stack);
 
-    free((*stack)->mem - 1);
-    
+    if((*stack)->mem != (stack_el_t*)NEW_NO_CTOR)
+    {
+        free((*stack)->mem - 1);
+    }
+
     (*stack)->mem = (stack_el_t*)ADR_POISON;
     (*stack)->len = -1;
     (*stack)->size = -1;

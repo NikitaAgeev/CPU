@@ -18,9 +18,9 @@ enum ERROR_S
 const size_t meta_data_len = sizeof(char)*strlen(ASM_CODE) + sizeof(int) + sizeof(size_t);  
 
 
-static int comand_interpritator (char* bin_code, size_t* i_ptr, size_t code_len, Stack stack, int* register_mass, int* RAM);
+static int comand_interpritator (char* bin_code, size_t* i_ptr, size_t code_len, Stack stack, int* register_mass, int* RAM, Stack ret_stack);
 
-static int* take_func_param (char* bin_code, size_t* i_ptr, size_t code_len, int param_mask, Stack stack, int* register_mass, int* RAM);
+static int* take_func_param (char* bin_code, size_t* i_ptr, size_t code_len, int param_mask, Stack stack, int* register_mass, int* RAM, Stack ret_stack);
 
 int main (int carg, char* varg[])
 {
@@ -65,43 +65,54 @@ int main (int carg, char* varg[])
     Stack stack = nullptr;
     STACK_CTOR(stack);
 
+    Stack ret_stack = nullptr;
+    STACK_CTOR(ret_stack);
+
     size_t i_ptr = 0;
 
-    int* register_mass = (int*)calloc(num_of_registers + 1, sizeof(int));
-    int* RAM_mass = (int*)calloc(RAM_size, sizeof(int));
+    int* register_mass = (int*)calloc(num_of_registers + 1, sizeof(arg_t));
+    int* RAM_mass = (int*)calloc(RAM_size, sizeof(arg_t));
 
     while(i_ptr < bin_code_len)
     {
-        comand_interpritator(bin_code, &i_ptr, bin_code_len, stack, register_mass, RAM_mass);
+        comand_interpritator(bin_code, &i_ptr, bin_code_len, stack, register_mass, RAM_mass, ret_stack);
     }
 
     free(bin_code);
     free(register_mass);
 
+    free(RAM_mass);
+
     STACK_DTOR(stack);
+    STACK_DTOR(ret_stack);
     STACK_LOG_CLOSE();
 }
 
 
-#define TAKE_PARAM(PARAM_MASK)                                                              \
-par  = take_func_param(bin_code, i_ptr_ptr, code_len, PARAM_MASK, stack, register_mass, RAM);    \
+#define TAKE_PARAM(PARAM_MASK)                                                                              \
+par  = take_func_param(bin_code, i_ptr_ptr, code_len, PARAM_MASK, stack, register_mass, RAM, ret_stack);    \
 
 #define param *par
-
-#define END_CPU         \
-    free(bin_code);     \
-    free(register_mass);\
-    free(RAM);          \
-    STACK_DTOR(stack);  \
-    STACK_LOG_CLOSE();  \
-    abort();            \
-
-#define END_CASE(PARAM_MASK)                                \
-    if(PARAM_MASK & (IN_MEM_PARAM)) free(par);   
+#define i_ptr *i_ptr_ptr
 
 #define pop POP(stack)
-
 #define push(PARAM) PUSH(stack, PARAM)
+
+#define pop_ret POP(ret_stack)
+#define push_ret(PARAM) PUSH(ret_stack, PARAM)
+
+
+#define END_CPU             \
+    free(bin_code);         \
+    free(register_mass);    \
+    free(RAM);              \
+    STACK_DTOR(stack);      \
+    STACK_DTOR(ret_stack);  \
+    STACK_LOG_CLOSE();      \
+    abort();            
+
+#define END_CASE(PARAM_MASK)                                \
+    if(PARAM_MASK & (IN_MEM_PARAM | MARC_PARAM)) free(par);   
 
 static inline unsigned char make_comand_case(unsigned char comand, int param_type)
 {
@@ -120,7 +131,7 @@ case NAME | ((PARAM_TYPE & (IN_MEM_PARAM | OUT_MEM_PARAM))? MEM_KEY_MASK: 0):   
     END_CASE(PARAM_TYPE);                           \
     break;          
 
-static int comand_interpritator (char* bin_code, size_t* i_ptr_ptr, size_t code_len, Stack stack, int* register_mass, int* RAM)
+static int comand_interpritator (char* bin_code, size_t* i_ptr_ptr, size_t code_len, Stack stack, int* register_mass, int* RAM, Stack ret_stack)
 {
     (void)code_len;
     
@@ -146,14 +157,14 @@ static int comand_interpritator (char* bin_code, size_t* i_ptr_ptr, size_t code_
 
 #undef COMAND
 
-#define TAKE_INT *(int*)(bin_code + *i_ptr_ptr)
+#define TAKE_INT *(arg_t*)(bin_code + *i_ptr_ptr)
 
 
 #pragma GCC diagnostic ignored "-Wuse-after-free"
 
 
 #define CHECK_INT_CODE_OVERFLOW                         \
-if((code_len - *i_ptr_ptr) < sizeof(int))               \
+if((code_len - *i_ptr_ptr) < sizeof(arg_t))               \
 {                                                       \
     printf("ERROR: Going beyond the code array.\n");    \
     free(output);                                       \
@@ -170,12 +181,12 @@ if((adr_num > 0) && (adr_num < 0))                      \
 }                                                       
 
 
-static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len, int param_mask, Stack stack, int* register_mass, int* RAM)
+static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len, int param_mask, Stack stack, int* register_mass, int* RAM, Stack ret_stack)
 {
     char comand = bin_code[*i_ptr_ptr];
-    *i_ptr_ptr += sizeof(char);
+    *i_ptr_ptr += sizeof(comand_t);
 
-    int* output = (int*)calloc(1, sizeof(int));
+    arg_t* output = (arg_t*)calloc(1, sizeof(arg_t));
     *output = 0;
     
     if(*i_ptr_ptr > code_len)
@@ -198,7 +209,7 @@ static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len,
             CHECK_INT_CODE_OVERFLOW;
 
             *output += register_mass[TAKE_INT];
-            *i_ptr_ptr += sizeof(int);
+            *i_ptr_ptr += sizeof(arg_t);
         }
 
         if(comand & INT_NUM_KEY)
@@ -206,7 +217,7 @@ static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len,
             CHECK_INT_CODE_OVERFLOW;
 
             *output += TAKE_INT;
-            *i_ptr_ptr += sizeof(int);
+            *i_ptr_ptr += sizeof(arg_t);
         }
 
         if(comand & RAM_KEY)
@@ -231,7 +242,7 @@ static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len,
             
             output = register_mass + TAKE_INT;
             
-            *i_ptr_ptr += sizeof(int);
+            *i_ptr_ptr += sizeof(arg_t);
 
             if(!(comand & RAM_KEY))
                 return output;
@@ -246,14 +257,14 @@ static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len,
             if(comand & INT_NUM_KEY)
             {
                 
-                if((code_len - *i_ptr_ptr) < sizeof(int))               
+                if((code_len - *i_ptr_ptr) < sizeof(arg_t))               
                 {                                                       
                     printf("ERROR: Going beyond the code array.\n");    
                     END_CPU;                                            
                 }
 
                 adr_num += TAKE_INT;
-                *i_ptr_ptr += sizeof(int);
+                *i_ptr_ptr += sizeof(arg_t);
             }
             
             CHECK_STACK_OVERFLOW;
@@ -264,6 +275,16 @@ static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len,
         }
 
         return register_mass + num_of_registers + 1;
+    }
+
+    if(param_mask == MARC_PARAM)
+    {
+        CHECK_INT_CODE_OVERFLOW;
+
+        *output = TAKE_INT;
+        *i_ptr_ptr += sizeof(arg_t);
+        
+        return output;
     }
 
     printf("ERROR: Bed param mask\n");

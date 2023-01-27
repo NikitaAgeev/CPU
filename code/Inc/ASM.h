@@ -4,12 +4,15 @@
 
 //cange
 const int ASM_VER = 4;
-const int CPU_VER = 3;
+const int CPU_VER = 4;
 const char* ASM_CODE =  "NA";
 
 const int num_of_registers = 4;
 
 const int RAM_size = 1000;
+
+typedef char comand_t;
+typedef int arg_t;
 
 enum PARAM_TYPE
 {
@@ -30,7 +33,8 @@ enum COMPAIL_STATUS
 {
     //OK = 0, conflict
     ERROR_COMAND = 1 << 0,
-    ERROR_PARAM = 1 << 1   
+    ERROR_PARAM = 1 << 1,
+    LOST_MARKER = 1 << 2,   
 };
 
 
@@ -41,7 +45,7 @@ enum COMAND_CODE
 {
     ERROR_COM    = 0x00,
     COMENT       = 0xFFF,
-    MARC         = 0xFF
+    MARC         = 0xFF,
 
     MEM_KEY_MASK = 0x10 << 3,
     RAM_KEY      = 0x10 << 2,
