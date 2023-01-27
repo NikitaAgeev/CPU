@@ -22,25 +22,24 @@ enum COMPAIL_STATUS
     ERROR_PARAM = 1 << 1   
 };
 
+
+#define COMAND(NAME, BIN_CODE, PARAM_TYPE, CODE)            \
+    NAME = BIN_CODE,
+
 enum COMAND_CODE
 {
-    ERROR_COM        = 0x00,
-    MEM_PARAM_T_MASK = 0x70,
+    ERROR_COM    = 0x00,
+    COMENT       = 0x7F,
 
     MEM_KEY_MASK = 0x10 << 3,
     RAM_KEY      = 0x10 << 2,
     REGISTER_KEY = 0x10 << 1,
     INT_NUM_KEY  = 0x10 << 0,
 
-    POP   = 0x01,
-    PUSH  = 0x02,
-    ADD   = 0x03,
-    DEL   = 0x04,
-    MULL  = 0x05,
-    DIV   = 0x06,
-    OUT   = 0x07,
+    #include <comands.h>
 
-    COMENT = 0x7F,
 };
+
+#undef COMAND
 
 #endif

@@ -336,10 +336,10 @@ static int take_reg_num (char* str)
 }
 
 
-#define INTERPRITATOR_UNIT(COMAND)                          \
-if(!strncmp(comand_string.str, #COMAND, strlen(#COMAND)))   \
+#define COMAND(NAME, BIN_CODE, PARAM_TYPE, CODE)            \
+if(!strncmp(comand_string.str, #NAME, strlen(#NAME)))       \
 {                                                           \
-    return COMAND;                                          \
+    return NAME;                                            \
 }           
 
 
@@ -350,27 +350,21 @@ static int comand_interpritator (string comand_string)
         return COMENT;
     }
 
-    INTERPRITATOR_UNIT(POP)
-    INTERPRITATOR_UNIT(PUSH)
-    INTERPRITATOR_UNIT(ADD)
-    INTERPRITATOR_UNIT(DEL)
-    INTERPRITATOR_UNIT(MULL)
-    INTERPRITATOR_UNIT(DIV)
-    INTERPRITATOR_UNIT(OUT)
+    #include <comands.h>
     
     return ERROR_COM;
 }
 
-#undef INTERPRITATOR_UNIT
+#undef COMAND
 
-#define COMAND_CASE(COMAND, PARAM)                                                                              \
-case COMAND:                                                                                                    \
-bin_mass[*bin_mass_len] = COMAND;                                                                               \
-                                                                                                                \
-if(param_interpritator(code.str_mass[itterator], bin_mass + *bin_mass_len, PARAM, bin_mass_len) == ERROR_PAR)   \
-return ERROR_PARAM;                                                                                             \
-                                                                                                                \
-break;                                                                                                          \
+#define COMAND(NAME, BIN_CODE, PARAM_TYPE, CODE)                                                                    \
+case NAME:                                                                                                          \
+bin_mass[*bin_mass_len] = NAME;                                                                                     \
+                                                                                                                    \
+if(param_interpritator(code.str_mass[itterator], bin_mass + *bin_mass_len, PARAM_TYPE, bin_mass_len) == ERROR_PAR)  \
+return ERROR_PARAM;                                                                                                 \
+                                                                                                                    \
+break;                                                                                                              \
 
 static int compile (Text code, char* bin_mass, size_t* bin_mass_len)
 {
@@ -383,13 +377,8 @@ static int compile (Text code, char* bin_mass, size_t* bin_mass_len)
         int comand = comand_interpritator(code.str_mass[itterator]);
         switch (comand)
         {
-        COMAND_CASE(POP,  OUT_MEM_PARAM)
-        COMAND_CASE(PUSH, IN_MEM_PARAM)
-        COMAND_CASE(ADD,  NO_PARAM)
-        COMAND_CASE(DEL,  NO_PARAM)
-        COMAND_CASE(MULL, NO_PARAM)
-        COMAND_CASE(DIV,  NO_PARAM)
-        COMAND_CASE(OUT,  NO_PARAM)
+        
+        #include <comands.h>
 
         case COMENT:
             break;
@@ -403,4 +392,4 @@ static int compile (Text code, char* bin_mass, size_t* bin_mass_len)
     return OK;
 }
 
-#undef COMAND_CASE
+#undef COMAND

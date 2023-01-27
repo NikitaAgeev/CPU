@@ -104,6 +104,27 @@ par  = take_func_param(bin_code, i_ptr_ptr, code_len, PARAM_MASK, stack, registe
 #define END_CASE(PARAM_MASK)                                \
     if(PARAM_MASK & (IN_MEM_PARAM | ONE_PARAM)) free(par);   
 
+#define pop POP(stack)
+
+#define push(PARAM) PUSH(stack, PARAM)
+
+static inline unsigned char make_comand_case(unsigned char comand, int param_type)
+{
+    if(param_type & (RAM_KEY | REGISTER_KEY | IN_MEM_PARAM))
+        return comand | MEM_KEY_MASK;
+    
+    return comand;
+}
+
+#define COMAND(NAME, BIN_CODE, PARAM_TYPE, CODE)    \
+case NAME | ((PARAM_TYPE & (IN_MEM_PARAM | OUT_MEM_PARAM))? MEM_KEY_MASK: 0):            \
+    TAKE_PARAM(PARAM_TYPE);                         \
+                                                    \
+    CODE                                            \
+                                                    \
+    END_CASE(PARAM_TYPE);                           \
+    break;          
+
 static int comand_interpritator (char* bin_code, size_t* i_ptr_ptr, size_t code_len, Stack stack, int* register_mass, int* RAM)
 {
     (void)code_len;
@@ -117,55 +138,8 @@ static int comand_interpritator (char* bin_code, size_t* i_ptr_ptr, size_t code_
 
     switch (comand)
     {
-    case POP | MEM_KEY_MASK:
-        TAKE_PARAM(OUT_MEM_PARAM);
-        
-        param = POP(stack);
-
-        END_CASE(OUT_MEM_PARAM);
-        break;
-    case PUSH | MEM_KEY_MASK:
-        TAKE_PARAM(IN_MEM_PARAM);
-
-        PUSH(stack, param);
-        
-        END_CASE(IN_MEM_PARAM);
-        break;
-    case ADD:
-        TAKE_PARAM(NO_PARAM);
-
-        PUSH(stack, POP(stack) + POP(stack));
-        
-        END_CASE(NO_PARAM);
-        break;
-    case DEL:
-        TAKE_PARAM(NO_PARAM);
-
-        PUSH(stack, POP(stack) - POP(stack));
-        
-        END_CASE(NO_PARAM);
-        break;
-    case MULL:
-        TAKE_PARAM(NO_PARAM);
-
-        PUSH(stack, POP(stack)*POP(stack));
-        
-        END_CASE(NO_PARAM);
-        break;
-    case DIV:
-        TAKE_PARAM(NO_PARAM);
-
-        PUSH(stack, POP(stack)/POP(stack));
-        
-        END_CASE(NO_PARAM);
-        break;
-    case OUT:
-        TAKE_PARAM(NO_PARAM);
-
-        printf("OUT: %d\n", POP(stack));
-        
-        END_CASE(NO_PARAM);
-        break;
+    
+    #include <comands.h>
 
     default:
         printf("Unknown command: \"%.2X\"(%.2X) line: %lu\n", comand, bin_code[*i_ptr_ptr], *i_ptr_ptr);
@@ -174,6 +148,8 @@ static int comand_interpritator (char* bin_code, size_t* i_ptr_ptr, size_t code_
     
     return OK;
 }
+
+#undef COMAND
 
 #define TAKE_INT *(int*)(bin_code + *i_ptr_ptr)
 
