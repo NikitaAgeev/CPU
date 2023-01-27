@@ -10,14 +10,16 @@ const char* ASM_CODE =  "NA";
 
 const int num_of_registers = 4;
 
+const int max_num_of_marcs = 64;
+
 
 static void make_meta_data (FILE* output_file, size_t bin_len);
 
-static int param_interpritator (string comand_string, char* pointer, int param_type, size_t* bin_mass_len);
+static int param_interpritator (string comand_string, char* pointer, int param_type, size_t* bin_mass_len, char** marc_mas, size_t* marc_mass_len);
 
 static int comand_interpritator (string comand_string);
 
-static int compile (Text code, char* bin_mass, size_t* bin_mass_len);
+static int compile (Text code, char* bin_mass, size_t* bin_mass_len, char** marc_mas, size_t* marc_mass_len);
 
 
 static int it_is_i (char* str);
@@ -25,6 +27,9 @@ static int it_is_i (char* str);
 static int it_is_reg (char* str);
 
 static int take_reg_num (char* str);
+
+
+static size_t is_marc (char** marc_mass, size_t* marc_mass_len, char* marc);
 
 
 int main (int carg, char* varg[])
@@ -57,20 +62,37 @@ int main (int carg, char* varg[])
 
     char* bin_mass = (char*)calloc(code.str_count * 9, sizeof(char));
     size_t bin_mass_len = 0;
+
+    char* marc_mas[max_num_of_marcs] = {};
+    size_t mrc_mass_len = 0;
     
     //debug_text_print(&code);
+    int error_code = LOST_MARC;
+    int compile_count = 0;
 
-    int error_code = compile(code, bin_mass, &bin_mass_len);
 
-    if(error_code == ERROR_COMAND)
+    while(error_code == LOST_MARC)
     {
-        printf("Error entering the command\n");
-        return 0;
-    }
-    else if(error_code == ERROR_PARAM)
-    {
-        printf("Error entering the command parameter\n");
-        return 0;
+        error_code = compile(code, bin_mass, &bin_mass_len, marc_mas, &mrc_mass_len);
+
+        if(error_code == ERROR_COMAND)
+        {
+            printf("Error entering the command\n");
+            return 0;
+        }
+        else if(error_code == ERROR_PARAM)
+        {
+            printf("Error entering the command parameter\n");
+            return 0;
+        }
+
+        if((error_code == LOST_MARC) && (compile_count == 1))
+        {
+            printf("Marc not found\n");
+            return 0;
+        }
+
+        compile_count ++;
     }
 
     FILE* bin_file = fopen(varg[2], "w");
@@ -109,7 +131,7 @@ static void make_meta_data (FILE* output_file, size_t bin_len)
     return ERROR_PAR;                                           \
 }                                                               
 
-static int param_interpritator (string comand_string, char* pointer, int param_type, size_t* bin_mass_len )
+static int param_interpritator (string comand_string, char* pointer, int param_type, size_t* bin_mass_len, char** marc_mas, size_t* marc_mass_len)
 {
     *bin_mass_len += sizeof(char);
 
@@ -122,23 +144,6 @@ static int param_interpritator (string comand_string, char* pointer, int param_t
             return OK_PARAM;
         else
             BED_ARG
-    }
-    else if(param_type & ONE_PARAM)
-    {
-        int param = 0;
-        size_t after_comand_pos = 0;
-
-        int num_of_read_param = sscanf(comand_string.str, "%*s %d%ln", &param, (ssize_t*)&after_comand_pos);
-
-        if((num_of_read_param == 1) && (after_comand_pos == comand_string.len)) 
-        {
-            *((int*)(pointer + sizeof(char))) = param;
-            *bin_mass_len += sizeof(int);
-
-            return OK_PARAM;
-        }
-        
-        BED_ARG
     }
     else if(param_type & (IN_MEM_PARAM | OUT_MEM_PARAM))
     {
@@ -308,8 +313,68 @@ static int param_interpritator (string comand_string, char* pointer, int param_t
         BED_ARG;
     
     }
+    else if(param_type & MARC_PARAM)
+    {
+        char marc[100] = {};
+
+        char end_char = 0;
+
+        int read_num = sscanf(comand_string.str, "%*s .%s %c", marc, &end_char);
+
+        if(read_num <= 0)
+            BED_ARG
+        
+        if((read_num == 1) || ((read_num == 2) &&(end_char == '%')))
+        {
+            if(is_marc(marc_mas, marc_mass_len, marc))
+            {
+                *(int*)(pointer + sizeof(char)) = num_marc(marc_mas, marc_mass_len, marc);
+                *bin_mass_len += sizeof(int);
+
+                return OK_PARAM;
+            }
+            
+            return LOST_MARC;
+        }
+
+        BED_ARG
+    }
 
     return OK_PARAM;
+}
+
+
+static size_t is_marc (char** marc_mass, size_t* marc_mass_len, char* marc)
+{
+    size_t itter = 0;
+
+    for(itter = 0; itter < *marc_mass_len; itter++)
+    {
+        if(!strcmp(marc_mass[itter], marc))
+            return 1;
+    }
+    
+    return 0;
+}
+
+static size_t num_marc (char** marc_mass, size_t* marc_mass_len, char* marc)
+{
+    size_t itter = 0;
+
+    for(itter = 0; itter < *marc_mass_len; itter++)
+    {
+        if(!strcmp(marc_mass[itter], marc))
+            return itter;
+    }
+    
+    return 0;
+}
+
+static void add_marc (char** marc_mass, size_t* marc_mass_len, char* marc)
+{
+    marc_mass[*marc_mass_len] = marc;
+    *marc_mass_len ++;
+    return;
 }
 
 
@@ -357,23 +422,29 @@ static int comand_interpritator (string comand_string)
 
 #undef COMAND
 
-#define COMAND(NAME, BIN_CODE, PARAM_TYPE, CODE)                                                                    \
-case NAME:                                                                                                          \
-bin_mass[*bin_mass_len] = NAME;                                                                                     \
-                                                                                                                    \
-if(param_interpritator(code.str_mass[itterator], bin_mass + *bin_mass_len, PARAM_TYPE, bin_mass_len) == ERROR_PAR)  \
-return ERROR_PARAM;                                                                                                 \
-                                                                                                                    \
-break;                                                                                                              \
+#define COMAND(NAME, BIN_CODE, PARAM_TYPE, CODE)                                                                                                \
+case NAME:                                                                                                                                      \
+bin_mass[*bin_mass_len] = NAME;                                                                                                                 \
+param_error = param_interpritator(code.str_mass[itterator], bin_mass + *bin_mass_len, PARAM_TYPE, bin_mass_len, marc_mas, marc_mass_len)        \
+                                                                                                                                                \
+if(param_error == ERROR_PAR)                                                                                                                    \
+    return ERROR_PARAM;                                                                                                                         \
+                                                                                                                                                \
+if(param_error == LOST_MARC)                                                                                                                    \
+    lost_marc_flag = 1;                                                                                                                         \
+break;                                                                                                                                          \
 
-static int compile (Text code, char* bin_mass, size_t* bin_mass_len)
+static int compile (Text code, char* bin_mass, size_t* bin_mass_len, char** marc_mas, size_t* marc_mass_len)
 {
     size_t itterator = 0;
+    int lost_marc_flag = 0;
 
     for(itterator = 0; itterator < code.str_count; itterator ++)
     {
         if(code.str_mass[itterator].len == 0) continue;
-        
+
+        int param_error = 0;
+
         int comand = comand_interpritator(code.str_mass[itterator]);
         switch (comand)
         {
@@ -388,6 +459,9 @@ static int compile (Text code, char* bin_mass, size_t* bin_mass_len)
             break;
         }
     }
+
+    if(lost_marc_flag)
+        return LOST_MARC;
 
     return OK;
 }

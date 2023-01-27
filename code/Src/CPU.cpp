@@ -190,16 +190,6 @@ static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len,
         END_CPU;
     }
 
-    if(param_mask == ONE_PARAM)
-    {
-        CHECK_INT_CODE_OVERFLOW;
-
-        *output = TAKE_INT; 
-        *i_ptr_ptr += sizeof(int);
-        
-        return output;
-    }
-    
     if(param_mask == NO_PARAM)
     {
         free(output);
