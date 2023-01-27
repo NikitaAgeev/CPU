@@ -1,6 +1,14 @@
 #ifndef ASM
 #define ASM
 
+const int ASM_VER = 4;
+const int CPU_VER = 3;
+const char* ASM_CODE =  "NA";
+
+const int num_of_registers = 4;
+
+const int RAM_size = 1000;
+
 enum PARAM_TYPE
 {
     NO_PARAM      = 1 << 0,
@@ -30,7 +38,8 @@ enum COMPAIL_STATUS
 enum COMAND_CODE
 {
     ERROR_COM    = 0x00,
-    COMENT       = 0x7F,
+    COMENT       = 0xFFF,
+    MARC         = 0xFF
 
     MEM_KEY_MASK = 0x10 << 3,
     RAM_KEY      = 0x10 << 2,

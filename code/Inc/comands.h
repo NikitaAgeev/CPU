@@ -41,4 +41,5 @@ COMAND(OUT, 0x07, NO_PARAM,         \
     printf("OUT: %d\n", pop);       \
 }                                   \
 )
-                                   
+                                
+COMAND(JMP, 0x08, MARC_PARAM, {printf("yes\n");})

@@ -5,10 +5,6 @@
 #include "Onegin_hed.h"
 #include "ASM.h"
 
-const int ASM_VER = 3;
-const char* ASM_CODE =  "NA";
-
-const int num_of_registers = 4;
 
 const int max_num_of_marcs = 64;
 
@@ -17,7 +13,7 @@ static void make_meta_data (FILE* output_file, size_t bin_len);
 
 static int param_interpritator (string comand_string, char* pointer, int param_type, size_t* bin_mass_len, char** marc_mas, size_t* marc_mass_len);
 
-static int comand_interpritator (string comand_string);
+static int comand_interpritator (string comand_string, char** marc_mas, size_t* marc_mass_len);
 
 static int compile (Text code, char* bin_mass, size_t* bin_mass_len, char** marc_mas, size_t* marc_mass_len);
 
@@ -30,6 +26,10 @@ static int take_reg_num (char* str);
 
 
 static size_t is_marc (char** marc_mass, size_t* marc_mass_len, char* marc);
+
+static size_t num_marc (char** marc_mass, size_t* marc_mass_len, char* marc);
+
+static void add_marc (char** marc_mass, size_t* marc_mass_len, char* marc);
 
 
 int main (int carg, char* varg[])
@@ -408,13 +408,36 @@ if(!strncmp(comand_string.str, #NAME, strlen(#NAME)))       \
 }           
 
 
-static int comand_interpritator (string comand_string)
+static int comand_interpritator (string comand_string, char** marc_mas, size_t* marc_mass_len)
 {
     if(*comand_string.str == '%')
     {
         return COMENT;
     }
 
+    char marc[100] = {};
+    int read_n = 0;
+    int marc_len = 0;
+    char end_char = 0;
+
+    if(*comand_string.str == ':')
+    {
+        read_n = sscanf(":%s%n %c", marc, &marc_len, &end_char);
+        if(read_n <= 0)
+            return ERROR_COM;
+        
+        if(read_n == 2)
+        { 
+            if(end_char == '%')
+                comand_string.str[marc_len] = '\0';
+            else
+                return ERROR_COM;
+        }
+
+        if(!is_marc(marc_mas, marc_mass_len, comand_string.str + 1))
+            add_marc(marc_mas, marc_mass_len, comand_string.str + 1);
+
+    }
     #include <comands.h>
     
     return ERROR_COM;
@@ -425,7 +448,7 @@ static int comand_interpritator (string comand_string)
 #define COMAND(NAME, BIN_CODE, PARAM_TYPE, CODE)                                                                                                \
 case NAME:                                                                                                                                      \
 bin_mass[*bin_mass_len] = NAME;                                                                                                                 \
-param_error = param_interpritator(code.str_mass[itterator], bin_mass + *bin_mass_len, PARAM_TYPE, bin_mass_len, marc_mas, marc_mass_len)        \
+param_error = param_interpritator(code.str_mass[itterator], bin_mass + *bin_mass_len, PARAM_TYPE, bin_mass_len, marc_mas, marc_mass_len);       \
                                                                                                                                                 \
 if(param_error == ERROR_PAR)                                                                                                                    \
     return ERROR_PARAM;                                                                                                                         \
@@ -445,7 +468,7 @@ static int compile (Text code, char* bin_mass, size_t* bin_mass_len, char** marc
 
         int param_error = 0;
 
-        int comand = comand_interpritator(code.str_mass[itterator]);
+        int comand = comand_interpritator(code.str_mass[itterator], marc_mas, marc_mass_len);
         switch (comand)
         {
         

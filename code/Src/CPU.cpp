@@ -5,9 +5,8 @@
 #include "Stack.h"
 #include "ASM.h"
 
-STACK_LOG_OPEN(NULL);
 
-int num_of_registers = 4;
+STACK_LOG_OPEN(NULL);
 
 enum ERROR_S
 {
@@ -15,12 +14,8 @@ enum ERROR_S
     ERROR = 1,
 };
 
-const int CPU_VER = 3;
-const char* CPU_CODE = "NA";
 
-const int RAM_size = 1000;
-
-const size_t meta_data_len = sizeof(char)*strlen(CPU_CODE) + sizeof(int) + sizeof(size_t);  
+const size_t meta_data_len = sizeof(char)*strlen(ASM_CODE) + sizeof(int) + sizeof(size_t);  
 
 
 static int comand_interpritator (char* bin_code, size_t* i_ptr, size_t code_len, Stack stack, int* register_mass, int* RAM);
@@ -46,20 +41,20 @@ int main (int carg, char* varg[])
 
     fread(meta_data_bufer, sizeof(char), meta_data_len, binar_file);
 
-    if(strncmp(meta_data_bufer, CPU_CODE, strlen(CPU_CODE)))
+    if(strncmp(meta_data_bufer, ASM_CODE, strlen(ASM_CODE)))
     {
         printf("ERROR: Bed file\n");
         return 0;
     }
 
-    if(strncmp(meta_data_bufer + strlen(CPU_CODE), (char*)&CPU_VER, sizeof(int)))
+    if(strncmp(meta_data_bufer + strlen(ASM_CODE), (char*)&CPU_VER, sizeof(int)))
     {
         printf("ERROR: Bed version\n");
         return 0;
     }
 
     size_t bin_code_len = 0;
-    bin_code_len = *(size_t*)(meta_data_bufer + strlen(CPU_CODE) + sizeof(int));
+    bin_code_len = *(size_t*)(meta_data_bufer + strlen(ASM_CODE) + sizeof(int));
     char* bin_code = (char*)calloc(bin_code_len, sizeof(char));
 
     free(meta_data_bufer);
@@ -102,7 +97,7 @@ par  = take_func_param(bin_code, i_ptr_ptr, code_len, PARAM_MASK, stack, registe
     abort();            \
 
 #define END_CASE(PARAM_MASK)                                \
-    if(PARAM_MASK & (IN_MEM_PARAM | ONE_PARAM)) free(par);   
+    if(PARAM_MASK & (IN_MEM_PARAM)) free(par);   
 
 #define pop POP(stack)
 
