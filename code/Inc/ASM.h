@@ -17,14 +17,14 @@ typedef int arg_t;
 enum PARAM_TYPE
 {
     NO_PARAM      = 1 << 0,
-    MARC_PARAM     = 1 << 1,
+    MARK_PARAM     = 1 << 1,
     IN_MEM_PARAM  = 1 << 2,
     OUT_MEM_PARAM = 1 << 3,
 };
 
 enum PARAM_MASK
 {
-    LOST_MARC = 1 << 1,
+    LOST_MARK = 1 << 1,
     ERROR_PAR = 1 << 0,
     OK_PARAM  = 0,
 };
@@ -45,7 +45,7 @@ enum COMAND_CODE
 {
     ERROR_COM    = 0x00,
     COMENT       = 0xFFF,
-    MARC         = 0xFF,
+    MARK         = 0xFF,
 
     MEM_KEY_MASK = 0x10 << 3,
     RAM_KEY      = 0x10 << 2,

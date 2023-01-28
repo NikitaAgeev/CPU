@@ -4,6 +4,7 @@
 
 #include "Stack.h"
 #include "ASM.h"
+#include "math.h"
 
 
 STACK_LOG_OPEN(NULL);
@@ -112,7 +113,7 @@ par  = take_func_param(bin_code, i_ptr_ptr, code_len, PARAM_MASK, stack, registe
     abort();            
 
 #define END_CASE(PARAM_MASK)                                \
-    if(PARAM_MASK & (IN_MEM_PARAM | MARC_PARAM)) free(par);   
+    if(PARAM_MASK & (IN_MEM_PARAM | MARK_PARAM)) free(par);   
 
 static inline unsigned char make_comand_case(unsigned char comand, int param_type)
 {
@@ -277,7 +278,7 @@ static int* take_func_param (char* bin_code, size_t* i_ptr_ptr, size_t code_len,
         return register_mass + num_of_registers + 1;
     }
 
-    if(param_mask == MARC_PARAM)
+    if(param_mask == MARK_PARAM)
     {
         CHECK_INT_CODE_OVERFLOW;
 
